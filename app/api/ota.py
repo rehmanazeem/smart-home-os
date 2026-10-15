@@ -3,62 +3,26 @@ OTA publish router.
 
 Sections:
 0 - Imports
-1 - Helpers
-2 - Router
+1 - Router (access control lives in app.api.access)
 """
 
 # =============================
 # Section 0: Imports
 # =============================
-import os
-import ipaddress
 import json
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, AnyUrl
+
+from app.api.access import check_access
+from app.mqtt.topics import ota_topic
 
 router = APIRouter()
 
 
 # =============================
-# Section 1: Helpers
-# =============================
-ALLOWED_PRIVATE_NETWORKS = (
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("127.0.0.0/8"),
-)
-
-
-def _is_private_ip(ip: str) -> bool:
-    try:
-        addr = ipaddress.ip_address(ip)
-        return any(addr in net for net in ALLOWED_PRIVATE_NETWORKS)
-    except Exception:
-        return False
-
-
-def _check_access(request: Request) -> bool:
-    """Permit only if request client IP is private (VPN) or the correct API key is provided."""
-    api_key = os.environ.get("SMARTHOME_API_KEY")
-    # check API key header first
-    if api_key:
-        header = request.headers.get("x-api-key") or request.headers.get("X-API-KEY")
-        if header and header == api_key:
-            return True
-
-    # fallback to client IP check
-    client_host = request.client.host if request.client else None
-    if client_host and _is_private_ip(client_host):
-        return True
-
-    return False
-
-
-# =============================
-# Section 2: Router
+# Section 1: Router
 # =============================
 
 
@@ -69,21 +33,21 @@ class OTAPayload(BaseModel):
 
 
 @router.post("/ota/publish")
-async def publish_ota(payload: OTAPayload, request: Request):
+async def publish_ota(payload: OTAPayload, request: Request) -> Dict[str, Any]:
     """Publish an OTA command to one or more devices.
 
     Protection: either set SMARTHOME_API_KEY env var and provide the same in X-API-KEY header,
     or ensure the request comes from a private IP (VPN / local network).
     """
-    if not _check_access(request):
+    if not check_access(request):
         raise HTTPException(status_code=403, detail="forbidden")
 
     # default firmware url served by orchestrator
     base_url = f"http://{request.url.hostname}:{request.url.port or 80}/firmware/esp32.bin"
     firmware_url = str(payload.url) if payload.url else base_url
 
-    mqtt = router.app.state.mqtt  # type: ignore
-    registry = router.app.state.registry  # type: ignore
+    mqtt = request.app.state.mqtt
+    registry = request.app.state.registry
 
     # determine devices
     if payload.device_ids:
@@ -98,9 +62,9 @@ async def publish_ota(payload: OTAPayload, request: Request):
     # create an OTA job in registry
     job_id = await registry.create_ota_job(target_devices, firmware_url, payload.version)
 
-    results = []
+    results: List[Dict[str, Any]] = []
     for device_id in target_devices:
-        topic = f"home/demo/device/{device_id}/ota"
+        topic = ota_topic(device_id)
         message = {"url": firmware_url, "job_id": job_id}
         if payload.version:
             message["version"] = payload.version

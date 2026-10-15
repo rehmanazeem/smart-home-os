@@ -31,7 +31,8 @@ responds to relay commands, publishes telemetry, and performs an OTA update.
   status as devices report back, and serve the firmware binary over HTTP
   (`app/api/ota.py`, `/firmware/esp32.bin`).
 - **Access control for OTA**: requests are permitted only from private/VPN IP
-  ranges, or when a matching `X-API-KEY` header is supplied.
+  ranges, or when a matching `X-API-KEY` header is supplied
+  (`app/api/access.py`).
 - **Deployment helpers**: virtualenv setup, a systemd unit, an installer, and a
   WireGuard key-generation helper under `scripts/`.
 
@@ -78,6 +79,22 @@ Message topics follow the pattern `home/demo/device/{deviceId}/...`:
 - `.../telemetry` — periodic telemetry
 - `.../ota` — OTA command
 - `.../ota/status` — OTA progress reported by a device
+
+## Project layout
+
+```
+app/
+  main.py          # app factory, startup/shutdown wiring, firmware endpoint
+  api/
+    devices.py     # device list/register/relay endpoints
+    ota.py         # OTA publish endpoint
+    access.py      # private-IP / API-key access check
+  mqtt/
+    client.py      # asyncio-mqtt connection, subscribe loop, publish
+    topics.py      # pure topic builders + incoming message parsing
+  state/registry.py  # JSON-backed device and OTA job registry
+tests/             # pytest (pure logic + TestClient API tests)
+```
 
 ## Setup and run
 

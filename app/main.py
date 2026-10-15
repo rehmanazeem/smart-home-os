@@ -8,9 +8,8 @@ Sections are clearly marked.
 # Section 0: Imports
 # =============================
 import asyncio
-import json
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -46,7 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(ota_router, prefix="/api")
 
     @app.on_event("startup")
-    async def startup_event():
+    async def startup_event() -> None:
         # ensure data dir
         REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -61,7 +60,7 @@ def create_app() -> FastAPI:
         app.state._mqtt_task = asyncio.create_task(app.state.mqtt.handle_messages())
 
     @app.on_event("shutdown")
-    async def shutdown_event():
+    async def shutdown_event() -> None:
         # gracefully stop mqtt
         if hasattr(app.state, "mqtt"):
             await app.state.mqtt.disconnect()
@@ -70,7 +69,7 @@ def create_app() -> FastAPI:
 
     # firmware serving endpoint (should be reachable only via VPN interface)
     @app.get("/firmware/esp32.bin")
-    async def firmware_bin():
+    async def firmware_bin() -> Any:
         if not FIRMWARE_BIN.exists():
             return {"detail": "firmware not found"}
         return FileResponse(path=str(FIRMWARE_BIN), media_type="application/octet-stream", filename="esp32.bin")

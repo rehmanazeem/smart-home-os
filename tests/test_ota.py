@@ -33,6 +33,9 @@ def test_publish_ota_with_api_key(monkeypatch):
         async def list_devices(self):
             return {"demo-device-001": {}}
 
+        async def create_ota_job(self, device_ids, url, version=None):
+            return "job-1"
+
     app.state.registry = DummyRegistry()
 
     headers = {"x-api-key": "secret-token"}

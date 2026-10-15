@@ -27,12 +27,12 @@ class DeviceRegistry:
     :meth:`save`.
     """
 
-    def __init__(self, path: Optional[Path] = None):
+    def __init__(self, path: Optional[Path] = None) -> None:
         self._devices: Dict[str, Dict[str, Any]] = {}
         self._path = Path(path) if path else None
         self._lock = asyncio.Lock()
 
-    async def load(self):
+    async def load(self) -> None:
         """Load the registry from the backing JSON file if it exists."""
         if self._path and self._path.exists():
             try:
@@ -42,7 +42,7 @@ class DeviceRegistry:
             except Exception:
                 self._devices = {}
 
-    async def save(self):
+    async def save(self) -> None:
         """Persist the current registry contents to the backing JSON file."""
         if not self._path:
             return
@@ -54,7 +54,7 @@ class DeviceRegistry:
         async with self._lock:
             return dict(self._devices)
 
-    async def register_device(self, device_id: str, meta: Optional[Dict[str, Any]] = None):
+    async def register_device(self, device_id: str, meta: Optional[Dict[str, Any]] = None) -> None:
         """Create a device entry, or merge new metadata into an existing one."""
         async with self._lock:
             if device_id not in self._devices:
@@ -95,7 +95,7 @@ class DeviceRegistry:
         async with self._lock:
             return self._devices.get("ota_jobs", {}).get(job_id)
 
-    async def update_ota_job_status(self, job_id: str, device_id: str, status: str, info: Optional[Dict[str, Any]] = None):
+    async def update_ota_job_status(self, job_id: str, device_id: str, status: str, info: Optional[Dict[str, Any]] = None) -> None:
         """Update the status (and optional info) of one device within an OTA job."""
         async with self._lock:
             jobs = self._devices.setdefault("ota_jobs", {})
@@ -109,7 +109,7 @@ class DeviceRegistry:
                 job_devices[device_id].setdefault("info", {}).update(info)
         await self.save()
 
-    async def update_device_state(self, device_id: str, state: Dict[str, Any]):
+    async def update_device_state(self, device_id: str, state: Dict[str, Any]) -> None:
         """Shallow-merge reported state into a device, creating it if needed."""
         async with self._lock:
             if device_id not in self._devices:
