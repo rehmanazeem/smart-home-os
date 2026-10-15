@@ -1,0 +1,13 @@
+[Unit]
+Description=SmartHome OS FastAPI service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/smarthome-os
+ExecStart=/opt/smarthome-os/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
